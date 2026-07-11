@@ -12,7 +12,7 @@ because it is a credible, regulated, genuinely large-scale system in the author'
 domain (lab automation / genomics) and makes the portfolio piece speak that domain. The
 engineering is identical; only the nouns change.
 
-**Why the scale matters (and why this isn't over-engineering).** A single lab tracking a
+**Why the scale matters** A single lab tracking a
 few thousand specimens does not need Kafka, Debezium, Elasticsearch, and Redis — Postgres
 alone would serve its search, its point reads, and its analytics. This design targets the
 scale where that stops being true: a biobank or national sequencing programme holding
@@ -24,12 +24,12 @@ of the correctness argument (dual-write, §1) that holds at any volume. The stac
 laptop-sized on purpose — so the correctness machinery is inspectable — but the *design*
 is sized for the programme, not the bench.
 
-## 0. What this is NOT (read this first)
+## 0. What this is NOT
 
 Two boundaries, both deliberate, both the kind of distinction that separates a senior
 design from a muddled one:
 
-- **This is a read-model, not an audit trail.** It derives *current-state*, query-optimized
+- **This is a read-model.** It derives *current-state*, query-optimized
   projections. An audit trail is append-only *history* — that is event sourcing, a
   different pattern with different storage. Our topics are **compacted** (latest state per
   key); reconstructing full history from them is out of scope and would be the wrong tool.
@@ -103,8 +103,7 @@ Three deliberate sources of difficulty, each domain-authentic:
 - **Hard deletes on registered specimens.** A `registered` specimen accessioned in error, or
   a calibration/control scratch specimen never committed to a run, can be physically deleted
   by the operator. That produces a real Debezium delete + tombstone, so consumers must handle
-  the delete/compaction lifecycle — the half tutorials skip. Realistic precisely because it
-  is scoped to not-yet-processed data.
+  the delete/compaction lifecycle. Therefore scoped to not-yet-processed data.
 - **Soft delete on disposed specimens (projection-level delete).** A `disposed` specimen
   (consumed by extraction or discarded) is a chain-of-custody record and is *never*
   physically deleted; disposal is an `UPDATE` to `status='disposed'`. The source keeps the

@@ -1,0 +1,167 @@
+# Local CDC lab — the full stack, health-checked, reconstructible.
+#
+#   make up     bring everything up and WAIT until healthy
+#   make down   stop, keep data (named volumes survive)
+#   make nuke   stop and DESTROY all data
+#
+# Ports and credentials come from the repo-root .env (single source of truth).
+# Run compose from the repo root so it picks up that .env automatically.
+
+name: cdc
+
+services:
+  # ── Source of truth ─────────────────────────────────────────────────────────
+  # Postgres with logical replication ON — the one non-negotiable CDC setting.
+  # See learnings/01-postgres-logical-replication.md for what these flags mean.
+  postgres:
+    image: postgres:16.4
+    command:
+      - "postgres"
+      - "-c"
+      - "wal_level=logical"        # emit row-level change data on the WAL (D4, epic 03)
+      - "-c"
+      - "max_wal_senders=8"        # ≥4: WAL sender slots (Debezium uses one)
+      - "-c"
+      - "max_replication_slots=8"  # ≥4: replication slots are a first-class server resource
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # ── Log ─────────────────────────────────────────────────────────────────────
+  # Single-node Apache Kafka in KRaft mode (broker + controller, no ZooKeeper).
+  # Two listeners: INTERNAL for other containers (kafka:9092), EXTERNAL for your
+  # Mac (localhost:9092 → container 9094). CONTROLLER is the KRaft quorum port.
+  kafka:
+    image: apache/kafka:3.8.1
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENERS: INTERNAL://:9092,CONTROLLER://:9093,EXTERNAL://:9094
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:${KAFKA_PORT}
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      # Single node: everything replicates once. Fine for a lab, never for prod.
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      CLUSTER_ID: 5L6g3nShT-eMCtK--X86sw
+    ports:
+      - "${KAFKA_PORT}:9094"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 30s
+
+  # ── Kafka inspection UI ─────────────────────────────────────────────────────
+  # Apache Kafka ships no console (D1), so kafka-ui gives us a browser view of
+  # topics, messages, consumer groups, and the Connect cluster.
+  kafka-ui:
+    image: provectuslabs/kafka-ui:v0.7.2
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      KAFKA_CLUSTERS_0_NAME: cdc
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_KAFKACONNECT_0_NAME: connect
+      KAFKA_CLUSTERS_0_KAFKACONNECT_0_ADDRESS: http://connect:8083
+      DYNAMIC_CONFIG_ENABLED: "true"
+    ports:
+      - "${KAFKA_UI_PORT}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # ── CDC producer ────────────────────────────────────────────────────────────
+  # Kafka Connect running the Debezium plugin. The image ships the connector
+  # plugin; we do NOT register a connector here — that is epic 03. Story 01.3's
+  # smoke test only asserts the PostgresConnector plugin is installed.
+  connect:
+    image: debezium/connect:2.7.3.Final
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      BOOTSTRAP_SERVERS: kafka:9092
+      GROUP_ID: connect-cluster
+      CONFIG_STORAGE_TOPIC: connect_configs
+      OFFSET_STORAGE_TOPIC: connect_offsets
+      STATUS_STORAGE_TOPIC: connect_statuses
+      CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      STATUS_STORAGE_REPLICATION_FACTOR: 1
+      KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+    ports:
+      - "${KAFKA_CONNECT_PORT}:8083"
+    healthcheck:
+      test: ["CMD-SHELL", "curl --silent --fail http://localhost:8083/ >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+
+  # ── Search read-model ───────────────────────────────────────────────────────
+  # Single-node Elasticsearch, security disabled (local lab only — see
+  # ARCHITECTURE §9). Heap kept small so it coexists with Kafka + Postgres.
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+    ports:
+      - "${ELASTICSEARCH_PORT}:9200"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl --silent --fail http://localhost:9200/_cluster/health >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  # ── Cache read-model ────────────────────────────────────────────────────────
+  redis:
+    image: redis:7.4
+    ports:
+      - "${REDIS_PORT}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+# Named volumes are Docker-managed (they live in Docker's VM, not the repo).
+# `make down` keeps them; `make nuke` (compose down -v) destroys them. Why not
+# in-repo bind mounts: docs/adr/0001-postgres-storage-named-volumes.md.
+volumes:
+  pg_data:
+  kafka_data:
+  es_data:
+  redis_data:

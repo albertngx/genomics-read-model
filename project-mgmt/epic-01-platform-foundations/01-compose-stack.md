@@ -1,6 +1,6 @@
 # Story 01.1 — Compose stack
 
-- **Status:** todo
+- **Status:** done
 - **Effort:** L
 - **Depends on:** —
 

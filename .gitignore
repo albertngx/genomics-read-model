@@ -33,5 +33,5 @@ deploy/**/data/
 .vscode/
 *.swp
 
-# Note: project-mgmt/ is intentionally tracked — the epic/story breakdown is
-# part of the repository.
+# Note: project-mgmt/ and learnings/ are intentionally tracked — the epic/story
+# breakdown and the explanatory learnings notes are part of the repository.
