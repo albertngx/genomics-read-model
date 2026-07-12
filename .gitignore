@@ -31,6 +31,7 @@ deploy/**/data/
 .DS_Store
 .idea/
 .vscode/
+.claude/
 *.swp
 
 # Note: project-mgmt/ and learnings/ are intentionally tracked — the epic/story
