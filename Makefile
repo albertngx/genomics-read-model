@@ -7,7 +7,7 @@ COMPOSE := docker compose --env-file .env -f deploy/docker-compose.yml
 
 .DEFAULT_GOAL := help
 
-.PHONY: help up down nuke ps logs sync lint format test itest smoke migrate seed api
+.PHONY: help up down nuke ps logs sync lint format test itest smoke migrate seed api load
 
 help: ## List available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -43,6 +43,28 @@ seed: migrate ## Migrate then load seed data (~30 runs, ~5k specimens); idempote
 api: ## Run the tracking API locally with auto-reload (needs Postgres up + migrated)
 	@set -a; [ -f .env ] && . ./.env; set +a; \
 	  uv run uvicorn cdc_pipeline.api.app:app --reload --port $${API_PORT:-8000}
+
+## ── Load generator (epic 02.3) ───────────────────────────────────────────────
+
+# Tunables (override on the command line): SCENARIO RATE DURATION CONCURRENCY PROCESSES SEED.
+# e.g. `make load SCENARIO=burst RATE=200 DURATION=120`
+SCENARIO    ?= steady
+RATE        ?= 1000
+DURATION    ?= 60
+CONCURRENCY ?= 48
+PROCESSES   ?= 1
+SEED        ?= 0
+
+# Drives the API from the host. NOTE (macOS/Docker Desktop): the host→container port proxy
+# both caps aggregate throughput to a few hundred req/s AND chokes on the connection storm
+# from several client processes — so PROCESSES defaults to 1 here (reliable ~400–560/s). The
+# tuned API itself serves each write in ~5 ms and is capable of the full 1k/s; that's best
+# shown where there's no host-proxy hop — a Linux Docker host / CI, where PROCESSES>1 scales
+# cleanly (see docs/pipeline/load-generator.md). Reproducible: same SEED + PROCESSES ⇒ same
+# workload.
+load: ## Drive write load through the API (vars: SCENARIO RATE DURATION CONCURRENCY PROCESSES SEED)
+	uv run cdc-load $(SCENARIO) --rate $(RATE) --duration $(DURATION) \
+	  --concurrency $(CONCURRENCY) --processes $(PROCESSES) --seed $(SEED)
 
 ## ── Python ───────────────────────────────────────────────────────────────────
 

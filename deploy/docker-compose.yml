@@ -23,6 +23,17 @@ services:
       - "max_wal_senders=8"        # ≥4: WAL sender slots (Debezium uses one)
       - "-c"
       - "max_replication_slots=8"  # ≥4: replication slots are a first-class server resource
+      - "-c"
+      # Throughput tuning (story 02.3): don't block each COMMIT on a WAL fsync. On Docker
+      # for Mac a synchronous fsync serialises writes to ~200/s; off, the stack sustains
+      # 1k+ writes/s. Safe for this pipeline — the WAL is still written and flushed, so
+      # Debezium (epic 03) captures every change; only the crash-durability window (a few
+      # hundred ms of the newest commits) relaxes, which a dev/demo source can afford.
+      - "synchronous_commit=off"
+      - "-c"
+      # Headroom for the multi-worker API's connection pools (story 02.3): API_WORKERS ×
+      # (DB_POOL_SIZE + DB_MAX_OVERFLOW) connections, plus Debezium's slot and admin sessions.
+      - "max_connections=200"
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
