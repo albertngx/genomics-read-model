@@ -18,7 +18,6 @@ from cdc_pipeline.tools.load.rates import BurstRate, RampRate, SteadyRate, total
 from cdc_pipeline.tools.load.scenarios import DEFAULT_MIX, SCENARIOS, parse_mix
 from cdc_pipeline.tools.load.stats import percentile
 
-
 # ── percentile ────────────────────────────────────────────────────────────────
 
 

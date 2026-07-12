@@ -76,8 +76,8 @@ class WorkloadPlanner:
 
     mix: OpMix
     rng: random.Random
-    _specimen_zipf: "object"  # ZipfSampler; typed loosely to avoid an import cycle in hints
-    _run_zipf: "object | None"
+    _specimen_zipf: object  # ZipfSampler; typed loosely to avoid an import cycle in hints
+    _run_zipf: object | None
     run_ids: list[int]
     insert_prefix: str
 

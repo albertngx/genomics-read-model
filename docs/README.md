@@ -35,6 +35,8 @@ than restating it — so there is one source of truth and the wiki explains arou
 
 ### Pipeline (built in later epics — pages are design-ahead, marked 📐 planned)
 - [Tracking service](pipeline/tracking-service.md) — the boring, ignorant sole writer (epic 02).
+- [Load generator (`cdc-load`)](pipeline/load-generator.md) — async, skewed, reproducible write
+  load; the harness epics 04–07 reuse (epic 02.3).
 - [Search indexer](pipeline/search-indexer.md) — the hardest consumer; the cross-topic join (epic 04).
 - [Cache consumer](pipeline/cache-consumer.md) — Redis sync; the CAS idempotency pattern (epic 05).
 - [Verifier & replay](pipeline/verifier-and-replay.md) — the correctness oracle, rebuild, reindex,

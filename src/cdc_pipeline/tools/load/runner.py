@@ -46,7 +46,7 @@ async def _dispatch(
             # A bounded put so a saturated API (all workers stuck) can't make the run
             # overrun its --duration: if the queue stays full past the deadline, stop.
             await asyncio.wait_for(queue.put(op), timeout=remaining)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return
 
 
@@ -72,7 +72,7 @@ async def _readout(
     while not stop.is_set():
         try:
             await asyncio.wait_for(stop.wait(), timeout=interval)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             pass
         if stop.is_set():
             return
@@ -124,7 +124,7 @@ async def _shutdown_workers(
 
     try:
         await asyncio.wait_for(_drain(), timeout=grace)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         for worker in workers:
             worker.cancel()
         await asyncio.gather(*workers, return_exceptions=True)

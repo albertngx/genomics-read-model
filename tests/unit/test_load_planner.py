@@ -3,8 +3,6 @@ seeded runs repeatable (the whole point of ``--seed``)."""
 
 from __future__ import annotations
 
-import random
-
 from cdc_pipeline.tools.load.model import OpKind
 from cdc_pipeline.tools.load.planner import STATUS_WALK, Bootstrap, WorkloadPlanner, _successor
 from cdc_pipeline.tools.load.scenarios import DEFAULT_MIX, get_scenario
@@ -22,9 +20,8 @@ def _bootstrap() -> Bootstrap:
 
 
 def _make_planner(seed: int = 0, scenario_name: str = "steady") -> WorkloadPlanner:
-    return WorkloadPlanner.build(
-        get_scenario(scenario_name), DEFAULT_MIX, _bootstrap(), seed, insert_prefix="T"
-    )
+    scenario = get_scenario(scenario_name)
+    return WorkloadPlanner.build(scenario, scenario.mix, _bootstrap(), seed, insert_prefix="T")
 
 
 # ── reproducibility ─────────────────────────────────────────────────────────────

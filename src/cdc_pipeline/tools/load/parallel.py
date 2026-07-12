@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import multiprocessing as mp
 import time
-from collections import Counter
 from dataclasses import dataclass
 
 from cdc_pipeline.tools.load.model import OpKind
@@ -44,7 +43,7 @@ class ShardSpec:
     insert_prefix: str
 
 
-def _run_shard(spec: ShardSpec, total: "mp.Value", errors: "mp.Value", result_q: "mp.Queue") -> None:
+def _run_shard(spec: ShardSpec, total: mp.Value, errors: mp.Value, result_q: mp.Queue) -> None:
     """Child entrypoint: run one shard quietly, streaming counters and a final result."""
     import asyncio
 
@@ -71,7 +70,8 @@ def _run_shard(spec: ShardSpec, total: "mp.Value", errors: "mp.Value", result_q:
             errors.value += snap.errors
 
     async def _go() -> None:
-        async with LoadClient(spec.api_url, concurrency=spec.concurrency, timeout=spec.timeout) as c:
+        client = LoadClient(spec.api_url, concurrency=spec.concurrency, timeout=spec.timeout)
+        async with client as c:
             bootstrap = await c.bootstrap(spec.pool_size)
             planner = WorkloadPlanner.build(
                 scenario, mix, bootstrap, spec.seed, insert_prefix=spec.insert_prefix
@@ -117,7 +117,7 @@ def _merge(results: list[dict], elapsed: float) -> StatsCollector:
     return merged
 
 
-def _context() -> "mp.context.BaseContext":
+def _context() -> mp.context.BaseContext:
     """Prefer ``fork`` (Linux, and the container `make load` runs in): it inherits the shared
     Value/Queue and, unlike ``spawn``, never re-imports the console-script ``__main__`` —
     which would otherwise re-enter the CLI and recursively spawn. Falls back to the platform

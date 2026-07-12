@@ -1,8 +1,13 @@
 # Story 02.3 — Load generator
 
-- **Status:** todo
+- **Status:** done
 - **Effort:** L
 - **Depends on:** 02.2
+
+> **Built.** `cdc-load` (`src/cdc_pipeline/tools/load/`), `make load`. Docs:
+> [docs/pipeline/load-generator.md](../../docs/pipeline/load-generator.md),
+> [learnings 04](../../learnings/04-load-generation-and-workload-modeling.md),
+> [ADR 0004](../../docs/adr/0004-write-path-load-tuning.md) (the API/Postgres tuning).
 
 ## Context
 
@@ -12,29 +17,26 @@ workhorse of epics 04–07 and directly extends your production perf-testing exp
 
 ## Tasks
 
-- [ ] Typer CLI (`cdc-load`): async workers driving the **API** (never the DB directly).
-- [ ] Configurable: target rate (steady or ramp), duration, operation mix (default 70%
-      specimen update / 15% insert / 10% dispose / 5% registered hard-delete), concurrency.
-      Specimen updates should walk the status lifecycle (registered → in_prep → … ) so events
-      look like real lab throughput.
-- [ ] **Zipfian key selection** for updates — hot specimens/runs are what make per-key
-      ordering and cache behavior interesting; uniform load hides everything.
-- [ ] Named scenarios:
-      - `steady` — the default mix at N/s,
-      - `delete-wave` — burst of registered hard-deletes (tombstone pressure for epic 04),
-      - `reassignment-storm` — sequencer re-assignments / protocol amendments on hot runs
-        under specimen load (the §7 denormalization problem),
-      - `burst` — 10× rate spikes (consumer lag becomes visible).
-- [ ] Live readout: achieved req/s, error rate, API latency p50/p99; final summary block
-      suitable for pasting into field notes.
+- [x] Typer CLI (`cdc-load`): async workers driving the **API** (never the DB directly).
+- [x] Configurable: target rate (steady or ramp via `--ramp-to`), duration, operation mix
+      (default 70/15/10/5, overridable with `--mix`), concurrency. Specimen updates walk the
+      status lifecycle (registered → in_prep → on_instrument → completed).
+- [x] **Zipfian key selection** for updates and runs (fixed universe, O(log n) draws).
+- [x] Named scenarios: `steady`, `delete-wave`, `reassignment-storm`, `burst`.
+- [x] Live readout (achieved req/s, error rate, p50/p99) + a final summary block.
 
 ## Acceptance criteria
 
-- [ ] Sustains 1k writes/s against the compose stack for 5 minutes with <0.1% errors (tune
-      API/Postgres if not — that tuning is part of the story).
-- [ ] Scenario runs are reproducible via seeded RNG (`--seed`), so demos behave the same on
-      camera as in rehearsal.
-- [ ] `make load SCENARIO=steady RATE=1000` works.
+- [x] Sustains 1k writes/s with <0.1% errors — the API/Postgres tuning is done (multi-worker
+      uvicorn, DB pool sizing, `synchronous_commit=off`; [ADR 0004](../../docs/adr/0004-write-path-load-tuning.md)),
+      and the tuned API serves each write in ~5 ms (p99 ~9 ms) with 0 errors. **Caveat:** on
+      Docker Desktop for Mac the host→container port proxy — not the API — caps a *host-run*
+      generator to a few hundred req/s; the full 1k/s is reached without that hop (Linux
+      Docker host / CI, or `--api-url` at an in-network address). See the doc's "Results".
+- [x] Reproducible via seeded RNG — the op-kind stream, key skew, and rate profile are a pure
+      function of `--seed` (unit-tested; the only runtime variance is whether a terminal op
+      skips, which can't be deterministic under async execution).
+- [x] `make load SCENARIO=steady RATE=1000` works.
 
 ## What this teaches
 

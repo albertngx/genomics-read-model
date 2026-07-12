@@ -14,7 +14,6 @@ skew, and rate profile exactly (see :mod:`cdc_pipeline.tools.load.planner`).
 from __future__ import annotations
 
 import asyncio
-from typing import Optional
 
 import typer
 
@@ -92,9 +91,7 @@ async def _execute(
             f"({len(bootstrap.registered_ids):,} registered), {len(bootstrap.run_ids):,} runs"
         )
         scenario = get_scenario(scenario_name)
-        planner = WorkloadPlanner.build(
-            scenario, mix, bootstrap, seed, insert_prefix=insert_prefix
-        )
+        planner = WorkloadPlanner.build(scenario, mix, bootstrap, seed, insert_prefix=insert_prefix)
         await run_load(
             planner=planner,
             client=client,
@@ -157,20 +154,20 @@ def run(
         1, "--processes", "-p", help="Client processes across cores; --rate is split among them."
     ),
     seed: int = typer.Option(0, "--seed", "-s", help="RNG seed — makes the run reproducible."),
-    ramp_to: Optional[float] = typer.Option(
+    ramp_to: float | None = typer.Option(
         None, "--ramp-to", help="Ramp the rate linearly from --rate to this value over --duration."
     ),
-    mix: Optional[str] = typer.Option(
+    mix: str | None = typer.Option(
         None, "--mix", help="Override the op mix, e.g. 'update=70,insert=15,dispose=10,delete=5'."
     ),
     pool_size: int = typer.Option(
         3000, "--pool-size", help="Max existing specimens to load into the Zipf key universe."
     ),
-    api_url: Optional[str] = typer.Option(
+    api_url: str | None = typer.Option(
         None, "--api-url", help="API base URL (default: $API_URL or http://localhost:$API_PORT)."
     ),
     timeout: float = typer.Option(10.0, "--timeout", help="Per-request timeout in seconds."),
-    run_tag: Optional[str] = typer.Option(
+    run_tag: str | None = typer.Option(
         None, "--run-tag", help="Barcode prefix for inserted specimens (default: random)."
     ),
 ) -> None:

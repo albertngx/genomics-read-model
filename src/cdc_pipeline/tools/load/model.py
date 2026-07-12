@@ -8,10 +8,10 @@ client (which executes them) depend on a single vocabulary without depending on 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 
-class OpKind(str, Enum):
+class OpKind(StrEnum):
     """The write operations the generator issues against the API.
 
     The string values double as the keys used in an operation-mix spec

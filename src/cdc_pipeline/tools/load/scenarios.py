@@ -18,7 +18,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from cdc_pipeline.tools.load.model import OpKind
-from cdc_pipeline.tools.load.rates import BurstRate, RampRate, RateProfile, SteadyRate
+from cdc_pipeline.tools.load.rates import BurstRate, RateProfile, SteadyRate
 
 
 class OpMix:
@@ -37,13 +37,13 @@ class OpMix:
         return list(self._kinds)
 
     def as_percentages(self) -> dict[OpKind, float]:
-        return {k: 100.0 * w / self._total for k, w in zip(self._kinds, self._weights)}
+        return {k: 100.0 * w / self._total for k, w in zip(self._kinds, self._weights, strict=True)}
 
     def choose(self, rng) -> OpKind:  # rng: random.Random
         """Pick a kind. Consumes exactly one ``rng.random()`` (reproducibility contract)."""
         target = rng.random() * self._total
         upto = 0.0
-        for kind, weight in zip(self._kinds, self._weights):
+        for kind, weight in zip(self._kinds, self._weights, strict=True):
             upto += weight
             if target < upto:
                 return kind

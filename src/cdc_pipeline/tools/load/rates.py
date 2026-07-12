@@ -70,10 +70,7 @@ class BurstRate:
         return self.base_rps * self.multiplier if phase < self.spike_fraction else self.base_rps
 
     def describe(self) -> str:
-        return (
-            f"burst {self.base_rps:g}/s with {self.multiplier:g}× spikes "
-            f"every {self.period:g}s"
-        )
+        return f"burst {self.base_rps:g}/s with {self.multiplier:g}× spikes every {self.period:g}s"
 
 
 class Pacer:

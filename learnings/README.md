@@ -18,3 +18,5 @@ Learnings are the "aha, *that's* what that flag does" layer.
   — what a publication actually is, and why the schema (not the connector) owns what's captured.
 - [03 — Kafka connectors, and how Debezium is fed by Postgres](03-kafka-connect-and-connectors.md)
   — what a connector is, why Debezium runs inside Kafka Connect, and its Postgres/Kafka interfaces.
+- [04 — Load generation: workload modeling, skew, and reproducibility](04-load-generation-and-workload-modeling.md)
+  — rate vs. concurrency, why Zipf skew and seeding are features, and why the API was never the slow part.

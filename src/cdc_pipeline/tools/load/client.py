@@ -68,8 +68,9 @@ class LoadClient:
             resp = await self._client.request(op.method, op.path, json=op.json)
         except httpx.HTTPError as exc:
             latency_ms = (time.perf_counter() - start) * 1000
-            return Result(op.kind, ok=False, status_code=None, latency_ms=latency_ms,
-                          error=type(exc).__name__)
+            return Result(
+                op.kind, ok=False, status_code=None, latency_ms=latency_ms, error=type(exc).__name__
+            )
         latency_ms = (time.perf_counter() - start) * 1000
         ok = 200 <= resp.status_code < 300
         created_id: int | None = None
@@ -108,9 +109,7 @@ class LoadClient:
         offset = 0
         page = 500
         while len(specimen_ids) < pool_size:
-            resp = await self._client.get(
-                "/specimens", params={"limit": page, "offset": offset}
-            )
+            resp = await self._client.get("/specimens", params={"limit": page, "offset": offset})
             resp.raise_for_status()
             rows = resp.json()
             if not rows:
