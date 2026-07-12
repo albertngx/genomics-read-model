@@ -1,0 +1,68 @@
+name: CI
+
+# Two independent jobs:
+#   lint-test  — fast, no infrastructure: ruff + unit tests. Gates every push/PR.
+#   smoke      — brings the FULL compose stack up on CI's clean machine and runs the
+#                smoke suite against it. This is the integration signal (real infra,
+#                no mocks) that keeps the stack honest whenever images are bumped.
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-test:
+    name: lint + unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies (installs the pinned Python too)
+        run: uv sync --frozen
+
+      - name: Lint (ruff check + format check)
+        run: make lint
+
+      - name: Unit tests
+        run: make test
+
+  smoke:
+    name: compose smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies
+        run: uv sync --frozen
+
+      # .env is gitignored; the runner needs it for compose interpolation + smoke config.
+      - name: Materialize .env from the template
+        run: cp .env.example .env
+
+      - name: Bring up the stack (health-checked)
+        run: make up
+
+      - name: Smoke test the live stack
+        run: make smoke
+
+      - name: Dump service logs on failure
+        if: failure()
+        run: docker compose --env-file .env -f deploy/docker-compose.yml logs --no-color --tail=200
+
+      - name: Tear down
+        if: always()
+        run: make nuke

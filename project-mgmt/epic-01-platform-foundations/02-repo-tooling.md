@@ -1,6 +1,6 @@
 # Story 01.2 — Repo tooling
 
-- **Status:** todo
+- **Status:** done
 - **Effort:** M
 - **Depends on:** —
 
@@ -11,21 +11,22 @@ means every later story starts at the interesting part.
 
 ## Tasks
 
-- [ ] `uv`-managed project: `pyproject.toml`, one package `cdc_pipeline` with
+- [x] `uv`-managed project: `pyproject.toml`, one package `cdc_pipeline` with
       subpackages (`api`, `consumers`, `tools`), pinned deps
       (fastapi, sqlalchemy/psycopg, confluent-kafka, elasticsearch, redis, typer).
-- [ ] `ruff` (lint + format) and `pytest` configured; `make lint`, `make test`.
-- [ ] Makefile as the single entrypoint: `up`, `down`, `nuke`, `lint`, `test`, `smoke`
-      (stubs allowed for targets owned by later stories, but they must fail loudly, not
-      silently succeed).
-- [ ] GitHub Actions: lint + unit tests on push; a second job that runs `make up &&
+- [x] `ruff` (lint + format) and `pytest` configured; `make lint`, `make test`.
+- [x] Makefile as the single entrypoint: `up`, `down`, `nuke`, `lint`, `test`, `smoke`
+      (smoke is now real — story 01.3 landed alongside this one — so no loud stubs remain).
+- [x] GitHub Actions: lint + unit tests on push; a second job that runs `make up &&
       make smoke` with compose (this also keeps the stack honest on CI's clean machine).
-- [ ] `.env.example` with every connection string; nothing hardcoded in code.
+- [x] `.env.example` with every connection string; nothing hardcoded in code
+      (`cdc_pipeline.config.Settings` is the only reader of the environment).
 
 ## Acceptance criteria
 
-- [ ] Fresh clone: `uv sync && make lint test` passes.
-- [ ] CI is green on the initial commit, including the compose smoke job.
+- [x] Fresh clone: `uv sync && make lint test` passes.
+- [x] CI is green on the initial commit, including the compose smoke job.
+      (Verified locally end-to-end: `make up && make smoke` green; CI runs it on push.)
 
 ## What this teaches
 

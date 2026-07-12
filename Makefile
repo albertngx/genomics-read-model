@@ -7,7 +7,7 @@ COMPOSE := docker compose --env-file .env -f deploy/docker-compose.yml
 
 .DEFAULT_GOAL := help
 
-.PHONY: help up down nuke ps logs lint test smoke
+.PHONY: help up down nuke ps logs sync lint format test smoke
 
 help: ## List available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -30,13 +30,21 @@ ps: ## Show service status and health
 logs: ## Tail logs from all services
 	$(COMPOSE) logs -f
 
-## ── Python (owned by later stories — stubs fail loudly, never silently) ───────
+## ── Python ───────────────────────────────────────────────────────────────────
 
-lint: ## (story 01.2) ruff lint + format check
-	@echo "make lint: not implemented yet — owned by story 01.2 (repo tooling)"; exit 1
+sync: ## Install/refresh the Python environment (.venv) from pyproject + uv.lock
+	uv sync
 
-test: ## (story 01.2) pytest unit tests
-	@echo "make test: not implemented yet — owned by story 01.2 (repo tooling)"; exit 1
+lint: ## ruff lint + format check (no changes made — fails if either would)
+	uv run ruff check .
+	uv run ruff format --check .
 
-smoke: ## (story 01.3) prove the live stack actually works
-	@echo "make smoke: not implemented yet — owned by story 01.3 (smoke tests)"; exit 1
+format: ## Auto-fix lint findings and reformat in place
+	uv run ruff check --fix .
+	uv run ruff format .
+
+test: ## Fast unit tests — no infrastructure required
+	uv run pytest tests/unit
+
+smoke: ## Prove the live stack works end-to-end (run `make up` first)
+	uv run pytest -m smoke tests/smoke

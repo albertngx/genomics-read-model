@@ -1,0 +1,55 @@
+[project]
+name = "cdc-pipeline"
+version = "0.1.0"
+description = "CDC-driven read models: one Python package for the API, consumers, and tools."
+requires-python = ">=3.12"
+
+# Runtime deps for the whole project. Pinned by lower bound here; exact versions
+# are locked in uv.lock (committed) so every clone resolves identically.
+dependencies = [
+    "fastapi>=0.115",           # tracking API (epic 02)
+    "uvicorn[standard]>=0.30",  # ASGI server that runs the API
+    "sqlalchemy>=2.0",          # ORM / core for the source schema + read paths
+    "psycopg[binary]>=3.2",     # Postgres driver (v3); binary wheel, no local libpq
+    "confluent-kafka>=2.5",     # Kafka client (produce/consume/admin) for consumers
+    "elasticsearch>=8.15,<9",   # search read-model client — major must track the server (8.15)
+    "redis>=5.0",               # cache read-model client
+    "typer>=0.12",              # CLI framework for cdc_pipeline.tools
+]
+
+[project.scripts]
+# Single CLI entrypoint; subcommands land in later epics. Present now so the
+# console-script wiring is proven from day one.
+cdc = "cdc_pipeline.__main__:app"
+
+[dependency-groups]
+# Installed by `uv sync` (dev group is default). Not shipped in the wheel.
+dev = [
+    "ruff>=0.6",
+    "pytest>=8.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cdc_pipeline"]
+
+# ── ruff: lint + format, the single style authority ──────────────────────────
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+# A pragmatic default set: pyflakes (F), pycodestyle (E/W), import sorting (I),
+# pyupgrade (UP), flake8-bugbear (B). Expand as the codebase grows.
+select = ["E", "W", "F", "I", "UP", "B"]
+
+# ── pytest: unit suite by default; smoke suite is opt-in (needs the live stack) ──
+[tool.pytest.ini_options]
+addopts = "-q --strict-markers"
+markers = [
+    "smoke: end-to-end checks against the live docker stack (require `make up`)",
+]
