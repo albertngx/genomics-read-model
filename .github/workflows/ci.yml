@@ -56,11 +56,14 @@ jobs:
       - name: Bring up the stack (health-checked)
         run: make up
 
-      - name: Smoke test the live stack
-        run: make smoke
-
+      # Seed BEFORE smoke: the CDC connector smoke test (story 03.1) registers the
+      # connector and asserts the snapshot/streaming against the seeded schema + rows
+      # and the cdc_pub publication. The other smoke checks are schema-agnostic.
       - name: Migrate and seed the source database
         run: make seed
+
+      - name: Smoke test the live stack
+        run: make smoke
 
       - name: API integration tests (both delete paths, against compose Postgres)
         run: make itest
