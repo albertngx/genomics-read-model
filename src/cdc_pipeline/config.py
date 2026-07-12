@@ -11,10 +11,37 @@ from __future__ import annotations
 import os
 from collections.abc import Mapping
 from dataclasses import dataclass
+from pathlib import Path
 
 
 class ConfigError(RuntimeError):
     """A required environment variable is missing or malformed."""
+
+
+def load_dotenv(path: str | Path) -> None:
+    """Populate ``os.environ`` from a ``.env`` file *without* clobbering existing values.
+
+    Anything already exported (CI, an explicit ``export``, a parent process) wins. Used
+    by entrypoints that run outside the compose network — Alembic and the seed — so that
+    ``make seed`` works whether or not the caller sourced ``.env``. A no-op if the file
+    is absent. Intentionally tiny (no external dependency); handles ``KEY=value`` lines,
+    ``#`` comments, inline ``  # comment`` trailers, and surrounding quotes.
+    """
+    path = Path(path)
+    if not path.exists():
+        return
+    for raw in path.read_text().splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        key, sep, value = line.partition("=")
+        if not sep:
+            continue
+        key = key.strip()
+        if key in os.environ:  # already set — don't override the caller/CI
+            continue
+        value = value.split(" #", 1)[0].strip().strip('"').strip("'")
+        os.environ[key] = value
 
 
 def _require(env: Mapping[str, str], name: str) -> str:

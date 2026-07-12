@@ -14,3 +14,5 @@ Learnings are the "aha, *that's* what that flag does" layer.
 
 - [01 — Postgres logical replication: `wal_level` and `REPLICA IDENTITY`](01-postgres-logical-replication.md)
   — the two Postgres settings CDC lives or dies on.
+- [02 — Postgres publications, and why capture config lives in the migration](02-publications-and-capture-config.md)
+  — what a publication actually is, and why the schema (not the connector) owns what's captured.

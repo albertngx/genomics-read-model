@@ -15,3 +15,4 @@ supersedes it rather than editing history.
 
 - [0001 — Postgres/stack storage: named volumes over in-repo bind mounts](0001-postgres-storage-named-volumes.md) — Accepted, 2026-07-11
 - [0002 — Container runtime: Docker Desktop, with Colima as fallback](0002-colima-over-docker-desktop.md) — Accepted, 2026-07-12
+- [0003 — CDC capture config lives in schema migrations, not connector config](0003-cdc-capture-config-in-migrations.md) — Accepted, 2026-07-12

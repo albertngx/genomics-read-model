@@ -10,6 +10,7 @@ dependencies = [
     "fastapi>=0.115",           # tracking API (epic 02)
     "uvicorn[standard]>=0.30",  # ASGI server that runs the API
     "sqlalchemy>=2.0",          # ORM / core for the source schema + read paths
+    "alembic>=1.13",            # schema migrations — owns the CDC capture config too (epic 02.1)
     "psycopg[binary]>=3.2",     # Postgres driver (v3); binary wheel, no local libpq
     "confluent-kafka>=2.5",     # Kafka client (produce/consume/admin) for consumers
     "elasticsearch>=8.15,<9",   # search read-model client — major must track the server (8.15)

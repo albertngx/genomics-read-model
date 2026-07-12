@@ -7,7 +7,7 @@ COMPOSE := docker compose --env-file .env -f deploy/docker-compose.yml
 
 .DEFAULT_GOAL := help
 
-.PHONY: help up down nuke ps logs sync lint format test smoke
+.PHONY: help up down nuke ps logs sync lint format test smoke migrate seed
 
 help: ## List available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -29,6 +29,14 @@ ps: ## Show service status and health
 
 logs: ## Tail logs from all services
 	$(COMPOSE) logs -f
+
+## ── Source database (epic 02) ────────────────────────────────────────────────
+
+migrate: ## Apply Alembic migrations (schema + CDC capture config) to head
+	uv run alembic upgrade head
+
+seed: migrate ## Migrate then load seed data (~30 runs, ~5k specimens); idempotent
+	uv run python -m cdc_pipeline.db.seed
 
 ## ── Python ───────────────────────────────────────────────────────────────────
 
