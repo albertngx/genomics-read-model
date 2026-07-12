@@ -22,7 +22,7 @@ make logs   # tail all logs
 | **postgres** | `postgres:16.4` | 5432 | Source of truth. Runs with `wal_level=logical` so Debezium can tail row changes off the WAL. Connect with `psql "$DATABASE_URL"`. |
 | **kafka** | `apache/kafka:3.8.1` | 9092 | The durable, ordered, replayable log. Single node, KRaft mode (broker+controller, no ZooKeeper). Reach the broker at `localhost:9092`. |
 | **kafka-ui** | `provectuslabs/kafka-ui:v0.7.2` | 8080 | Browser console for topics/messages/consumer groups/Connect — Apache Kafka ships none. Open <http://localhost:8080>. |
-| **connect** | `debezium/connect:2.7.3.Final` | 8083 | Kafka Connect with the Debezium plugin installed. **No connector is registered here** — that's epic 03. REST API at <http://localhost:8083>. |
+| **connect** | `debezium/connect:2.7.3.Final` | 8083 | Kafka Connect with the Debezium plugin. The CDC connector is registered from [`connectors/genomics.json`](connectors/genomics.json) via `make connector` (story 03.1). REST API at <http://localhost:8083>. |
 | **elasticsearch** | `docker.elastic.co/.../8.15.0` | 9200 | Search read-model. Single node, security disabled (local lab only). REST at <http://localhost:9200>. |
 | **redis** | `redis:7.4` | 6379 | Cache read-model. `redis-cli -p 6379 ping`. |
 

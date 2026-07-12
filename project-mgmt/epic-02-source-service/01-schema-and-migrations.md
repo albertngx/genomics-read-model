@@ -1,6 +1,6 @@
 # Story 02.1 — Schema and migrations
 
-- **Status:** todo
+- **Status:** done
 - **Effort:** M
 - **Depends on:** epic 01
 

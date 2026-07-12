@@ -1,36 +1,55 @@
 # Kafka Connect + Debezium
 
-> **Status:** Connect running; **connector not yet registered** (epic 03) · **Spec:**
-> [ARCHITECTURE.md](../../ARCHITECTURE.md) §2, D2, D6 · **REST:** <http://localhost:8083>
+> **Status:** Connect running; **connector registered** (story 03.1 — `make connector`) ·
+> **Spec:** [ARCHITECTURE.md](../../ARCHITECTURE.md) §2, D2, D6 · **REST:** <http://localhost:8083>
 
 This is the **CDC producer** — the piece that actually turns Postgres's WAL into Kafka
 events. It's two things stacked: **Kafka Connect** (a framework for running connectors) and
 the **Debezium** Postgres connector (the plugin that knows how to read the WAL).
 
-## What's running today vs. later
+## The connector: config, registration, operations
 
-The compose stack runs **Kafka Connect with the Debezium plugin installed**, but **no
-connector is configured yet** — registering the connector (with its table list, slot name,
-and options) is [epic 03](../../project-mgmt/epic-03-cdc-ingestion/). Today, story 01.3's
-smoke test only asserts the plugin is present:
+The connector is a flat JSON config map at
+[`deploy/connectors/genomics.json`](../../deploy/connectors/genomics.json), with every field
+justified line-by-line in the adjacent
+[`genomics.notes.md`](../../deploy/connectors/genomics.notes.md). Credentials are `${VAR}`
+placeholders filled from the repo-root `.env` at registration time — nothing hardcoded.
 
 ```bash
-curl -s http://localhost:8083/connector-plugins | jq -r '.[].class' | grep postgresql
-# → io.debezium.connector.postgresql.PostgresConnector
+make connector          # idempotent PUT /connectors/genomics/config (create or update)
+make connector-status   # connector + task state (RUNNING when healthy)
+make slot-status        # the Postgres replication slot: active + confirmed_flush_lsn + retained WAL
+make connector-delete   # remove the connector (the slot survives — see the notes file)
 ```
 
-```mermaid
-flowchart LR
-  subgraph today["Epic 01 — now"]
-    c1["Kafka Connect<br/>+ Debezium plugin installed"]
-    n1["(no connector registered)"]
-  end
-  subgraph e03["Epic 03"]
-    c2["Kafka Connect"] --> conn["PostgresConnector<br/>registered via REST"]
-    conn --> pg[("Postgres")]
-    conn --> k{{"Kafka topics"}}
-  end
+`make connector` is idempotent by construction: Connect's `PUT …/config` creates the
+connector if absent and updates it in place if present, so re-running never errors.
+
+## Verification runbook (story 03.1 acceptance)
+
+From a clean stack, this walks the full handshake and each acceptance criterion:
+
+```bash
+make nuke up seed        # fresh stack + schema + publication cdc_pub + 5,000 specimens
+make connector           # register; snapshot begins immediately
+make connector-status    # → connector=RUNNING tasks=[RUNNING]
 ```
+
+1. **Snapshot** — open kafka-ui (<http://localhost:8080>) → topic `cdc.public.specimens`.
+   Every seeded row is there as an `op:"r"` event (5,000 of them); `cdc.public.runs` has the
+   ~30 runs. `r` = *read* (snapshot), not create.
+2. **Streaming** — `make load` in one terminal; watch new `op:"c"/"u"/"d"` events appear live
+   in kafka-ui within ~1s, correctly keyed by primary key (`{"id": …}`). Or drive one change
+   by hand through the API (<http://localhost:8000/docs>) — an INSERT/UPDATE/DELETE each
+   produce a visible event; a DELETE also emits a `null` tombstone on the same key.
+3. **Slot** — `make slot-status` shows `cdc_genomics` with `active=t` and a
+   `confirmed_flush_lsn` that advances as events are acknowledged (run it again under
+   `make load` to watch it climb). Column-by-column reading:
+   [learning 05](../../learnings/05-cdc-handshake-and-slots.md).
+
+The same three checks are automated in `tests/smoke/test_cdc_connector.py` (`make smoke`).
+Concept-level walkthrough of the whole handshake:
+[learning 05](../../learnings/05-cdc-handshake-and-slots.md).
 
 ## How Debezium captures changes: snapshot, then stream
 

@@ -7,7 +7,8 @@ COMPOSE := docker compose --env-file .env -f deploy/docker-compose.yml
 
 .DEFAULT_GOAL := help
 
-.PHONY: help up down nuke ps logs sync lint format test itest smoke migrate seed api load
+.PHONY: help up down nuke ps logs sync lint format test itest smoke migrate seed api load \
+        connector connector-status connector-delete slot-status
 
 help: ## List available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -65,6 +66,31 @@ SEED        ?= 0
 load: ## Drive write load through the API (vars: SCENARIO RATE DURATION CONCURRENCY PROCESSES SEED)
 	uv run cdc-load $(SCENARIO) --rate $(RATE) --duration $(DURATION) \
 	  --concurrency $(CONCURRENCY) --processes $(PROCESSES) --seed $(SEED)
+
+## ── CDC connector (epic 03.1) ────────────────────────────────────────────────
+
+# Registers the Debezium connector from deploy/connectors/genomics.json (${VAR}
+# placeholders filled from .env). Idempotent PUT: create-if-absent, update-in-place.
+# Needs `make up seed` first — the connector subscribes to the publication the
+# migration owns (cdc_pub) and snapshots the seeded rows.
+connector: ## Register/update the Debezium CDC connector (idempotent)
+	uv run cdc-connector register
+
+connector-status: ## Show connector + task status (RUNNING when healthy)
+	uv run cdc-connector status
+
+connector-delete: ## Delete the connector instance (keeps the replication slot)
+	uv run cdc-connector delete
+
+# The slot is Debezium's WAL cursor. `active` = a sender is attached; confirmed_flush_lsn
+# advances as events are acknowledged; retained_wal is how much WAL the slot is pinning
+# (the sharp edge — it grows if the connector stalls). Sourcing .env mirrors the api target.
+slot-status: ## Show the Postgres replication slot (active + confirmed_flush_lsn + retained WAL)
+	@set -a; [ -f .env ] && . ./.env; set +a; \
+	  $(COMPOSE) exec -T postgres psql -U $${POSTGRES_USER} -d $${POSTGRES_DB} -c \
+	  "SELECT slot_name, plugin, slot_type, active, active_pid, confirmed_flush_lsn, \
+	   pg_size_pretty(pg_wal_lsn_diff(pg_current_wal_lsn(), confirmed_flush_lsn)) AS retained_wal \
+	   FROM pg_replication_slots;"
 
 ## ── Python ───────────────────────────────────────────────────────────────────
 

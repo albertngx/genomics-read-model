@@ -1,6 +1,6 @@
 # Story 03.1 — Connector deployment
 
-- **Status:** todo
+- **Status:** done
 - **Effort:** M
 - **Depends on:** epic 02
 
@@ -12,7 +12,7 @@ rather than pasting a tutorial config.
 
 ## Tasks
 
-- [ ] Connector config under `deploy/connectors/genomics.json`, registered via
+- [x] Connector config under `deploy/connectors/genomics.json`, registered via
       `make connector` (idempotent PUT). Key choices, each with a one-line comment in an
       adjacent notes file:
       - `plugin.name=pgoutput`, `publication.name=cdc_pub` (from story 02.1),
@@ -22,17 +22,17 @@ rather than pasting a tutorial config.
       - `decimal.handling.mode=string` (decision D6),
       - `tombstones.on.delete=true` (needed by compaction, story 03.3),
       - JSON converter, `schemas.enable=false` (decision: inspectability, see §9).
-- [ ] Verify the initial snapshot: 5,000 seeded specimens appear as `op:"r"` events.
-- [ ] Run `make load` and watch live events in kafka-ui.
-- [ ] `make connector-status` (wraps the Connect REST status endpoint).
+- [x] Verify the initial snapshot: 5,000 seeded specimens appear as `op:"r"` events.
+- [x] Run `make load` and watch live events in kafka-ui.
+- [x] `make connector-status` (wraps the Connect REST status endpoint).
 
 ## Acceptance criteria
 
-- [ ] Fresh stack: `make seed connector` → snapshot events for every seeded run and
+- [x] Fresh stack: `make seed connector` → snapshot events for every seeded run and
       specimen.
-- [ ] INSERT/UPDATE/DELETE via the API each produce a visible, correctly keyed event
+- [x] INSERT/UPDATE/DELETE via the API each produce a visible, correctly keyed event
       within ~1s.
-- [ ] `SELECT slot_name, active, confirmed_flush_lsn FROM pg_replication_slots` shows the
+- [x] `SELECT slot_name, active, confirmed_flush_lsn FROM pg_replication_slots` shows the
       slot active and advancing under load — check it, understand each column.
 
 ## What this teaches

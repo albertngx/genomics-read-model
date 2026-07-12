@@ -1,0 +1,22 @@
+{
+  "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+  "tasks.max": "1",
+  "plugin.name": "pgoutput",
+  "database.hostname": "postgres",
+  "database.port": "5432",
+  "database.user": "${POSTGRES_USER}",
+  "database.password": "${POSTGRES_PASSWORD}",
+  "database.dbname": "${POSTGRES_DB}",
+  "topic.prefix": "cdc",
+  "publication.name": "cdc_pub",
+  "publication.autocreate.mode": "disabled",
+  "slot.name": "cdc_genomics",
+  "table.include.list": "public.runs,public.specimens",
+  "snapshot.mode": "initial",
+  "decimal.handling.mode": "string",
+  "tombstones.on.delete": "true",
+  "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+  "key.converter.schemas.enable": "false",
+  "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+  "value.converter.schemas.enable": "false"
+}

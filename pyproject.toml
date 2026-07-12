@@ -25,6 +25,8 @@ dependencies = [
 cdc = "cdc_pipeline.__main__:app"
 # Load generator (epic 02.3): async workers that drive the tracking API under load.
 cdc-load = "cdc_pipeline.tools.load.cli:main"
+# CDC connector (epic 03.1): register/inspect the Debezium connector via the Connect REST API.
+cdc-connector = "cdc_pipeline.tools.connector:main"
 
 [dependency-groups]
 # Installed by `uv sync` (dev group is default). Not shipped in the wheel.
