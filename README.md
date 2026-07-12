@@ -55,11 +55,11 @@ tools/               (created by epic 06) verifier, replay scripts, demos
 
 ```
 FastAPI tracking ──► Postgres ──WAL──► Debezium ──► Kafka topics (keyed by PK)
-service (boring        │                               │
-CRUD on runs/          │              ┌────────────────┼────────────────┐
-specimens, no          │              ▼                ▼                ▼
-knowledge of           │        search indexer   cache consumer   analytics
-downstream)            │        → Elasticsearch   → Redis          → DuckDB
+service (CRUD on       │                               │
+runs/specimens,        │              ┌────────────────┼────────────────┐
+no knowledge of        │              ▼                ▼                ▼
+downstream)            │        search indexer   cache consumer   analytics
+                       │        → Elasticsearch   → Redis          → DuckDB
                        │              ▲                                (added last,
                        └── verifier ──┘  (automated PG ↔ ES ↔ Redis     producer
                               diff — the correctness oracle)            untouched)
@@ -69,12 +69,20 @@ Full design, rationale, and failure-mode analysis: [ARCHITECTURE.md](ARCHITECTUR
 
 ## Quickstart
 
-> Available after epic 01 lands.
+Prerequisites: Docker (via Colima) and [`uv`](https://docs.astral.sh/uv/) — see
+[PREREQUISITES.md](PREREQUISITES.md). Run all commands from the repository root.
 
 ```
-make up      # bring up the full stack (Postgres, Kafka+Connect, Elasticsearch, Redis, kafka-ui)
-make seed    # schema + seed data + register Debezium connector
-make load    # start the workload generator
-make verify  # diff Postgres against the derived stores
-make demo    # the scripted rebuild-from-log demo
+make up      # start the stack (Postgres, Kafka+Connect, Elasticsearch, Redis, kafka-ui, tracking API)
+make seed    # apply migrations and load sample data (~30 runs, ~5k specimens); idempotent
+make down    # stop the stack, keep data (volumes survive)
+make nuke    # stop the stack and delete all data (removes the volumes)
 ```
+
+The tracking API is served at `http://localhost:8000`, with interactive API docs (Swagger
+UI) at [`/docs`](http://localhost:8000/docs) and a set of example requests in
+[`requests.http`](requests.http). `make help` lists every target.
+
+`make nuke` removes the Postgres volume, so after the next `make up` the database is empty;
+re-run `make seed` before calling the API. Later stories add `make load`, `make verify`, and
+`make demo`.

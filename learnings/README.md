@@ -16,3 +16,5 @@ Learnings are the "aha, *that's* what that flag does" layer.
   — the two Postgres settings CDC lives or dies on.
 - [02 — Postgres publications, and why capture config lives in the migration](02-publications-and-capture-config.md)
   — what a publication actually is, and why the schema (not the connector) owns what's captured.
+- [03 — Kafka connectors, and how Debezium is fed by Postgres](03-kafka-connect-and-connectors.md)
+  — what a connector is, why Debezium runs inside Kafka Connect, and its Postgres/Kafka interfaces.

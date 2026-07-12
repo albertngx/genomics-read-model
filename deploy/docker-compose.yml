@@ -38,6 +38,29 @@ services:
       retries: 10
       start_period: 10s
 
+  # ── Source service (the only writer to Postgres) ─────────────────────────────
+  # The tracking API. Deliberately ignorant of everything below this block — it is
+  # given ONLY its database URL, nothing about Kafka/Connect/ES/Redis (ARCHITECTURE §2).
+  # Swagger UI: http://localhost:${API_PORT}/docs
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/api.Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Reach Postgres by its compose service name (not localhost) from inside the network.
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    ports:
+      - "${API_PORT}:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl --silent --fail http://localhost:8000/health >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
   # ── Log ─────────────────────────────────────────────────────────────────────
   # Single-node Apache Kafka in KRaft mode (broker + controller, no ZooKeeper).
   # Two listeners: INTERNAL for other containers (kafka:9092), EXTERNAL for your

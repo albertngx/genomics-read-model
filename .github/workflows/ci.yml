@@ -59,6 +59,12 @@ jobs:
       - name: Smoke test the live stack
         run: make smoke
 
+      - name: Migrate and seed the source database
+        run: make seed
+
+      - name: API integration tests (both delete paths, against compose Postgres)
+        run: make itest
+
       - name: Dump service logs on failure
         if: failure()
         run: docker compose --env-file .env -f deploy/docker-compose.yml logs --no-color --tail=200

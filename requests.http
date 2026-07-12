@@ -1,0 +1,96 @@
+# cdc-read-model — tracking API round-trips (story 02.2).
+#
+# The full CRUD + both delete paths, runnable by hand. Two ways to use it:
+#   • VS Code REST Client / JetBrains HTTP client: click "Send Request" above each block.
+#   • curl: the equivalent command is in the comment under each block.
+#
+# Start the API first:  make api        (uvicorn on $API_PORT, default 8000)
+# Swagger UI to explore interactively:  http://localhost:8000/docs
+
+@base = http://localhost:8000
+
+### Health (liveness + database reachability)
+GET {{base}}/health
+# curl -s {{base}}/health
+
+### Create a run
+POST {{base}}/runs
+Content-Type: application/json
+
+{
+  "run_code": "RUN-2026-900",
+  "assay_protocol": "WES (Twist Exome 2.0)",
+  "sequencer": "SEQ-07",
+  "operator": "A. Okafor"
+}
+# curl -s -X POST {{base}}/runs -H 'content-type: application/json' \
+#   -d '{"run_code":"RUN-2026-900","assay_protocol":"WES (Twist Exome 2.0)","sequencer":"SEQ-07","operator":"A. Okafor"}'
+
+### Get a run  (replace 1 with the id returned above)
+GET {{base}}/runs/1
+# curl -s {{base}}/runs/1
+
+### List runs (filters: status, sequencer, limit, offset)
+GET {{base}}/runs?status=active&limit=10
+# curl -s '{{base}}/runs?status=active&limit=10'
+
+### PATCH a run — re-assign the sequencer (the §7 denormalization-storm trigger)
+PATCH {{base}}/runs/1
+Content-Type: application/json
+
+{
+  "sequencer": "SEQ-08"
+}
+# curl -s -X PATCH {{base}}/runs/1 -H 'content-type: application/json' -d '{"sequencer":"SEQ-08"}'
+
+### PATCH a run — protocol amendment (also fans out downstream)
+PATCH {{base}}/runs/1
+Content-Type: application/json
+
+{
+  "assay_protocol": "WGS PCR-free (TruSeq DNA PCR-Free)"
+}
+# curl -s -X PATCH {{base}}/runs/1 -H 'content-type: application/json' \
+#   -d '{"assay_protocol":"WGS PCR-free (TruSeq DNA PCR-Free)"}'
+
+### Create a specimen (registered → hard-deletable). volume_ul is a decimal string (D6).
+POST {{base}}/specimens
+Content-Type: application/json
+
+{
+  "barcode": "SPEC-900001",
+  "label": "Participant NGP-00042 aliquot 1 (blood)",
+  "specimen_type": "blood",
+  "assay": "WES",
+  "volume_ul": "125.50",
+  "status": "registered",
+  "run_id": 1
+}
+# curl -s -X POST {{base}}/specimens -H 'content-type: application/json' \
+#   -d '{"barcode":"SPEC-900001","label":"...","specimen_type":"blood","assay":"WES","volume_ul":"125.50","status":"registered","run_id":1}'
+
+### Get a specimen  (replace 1 with the id returned above)
+GET {{base}}/specimens/1
+# curl -s {{base}}/specimens/1
+
+### List specimens (filters: status, run_id, assay, specimen_type, limit, offset)
+GET {{base}}/specimens?run_id=1&status=registered&limit=10
+# curl -s '{{base}}/specimens?run_id=1&status=registered&limit=10'
+
+### PATCH a specimen (ordinary edit — NOT disposal/delete, which have their own endpoints)
+PATCH {{base}}/specimens/1
+Content-Type: application/json
+
+{
+  "status": "in_prep"
+}
+# curl -s -X PATCH {{base}}/specimens/1 -H 'content-type: application/json' -d '{"status":"in_prep"}'
+
+### Dispose a specimen — SOFT delete: UPDATE status=disposed, the source row SURVIVES (§3/§7)
+POST {{base}}/specimens/1/dispose
+# curl -s -X POST {{base}}/specimens/1/dispose
+
+### Hard-delete a specimen — physically removes the row (op:"d" + tombstone downstream).
+### 204 if the specimen is `registered`; 409 otherwise (the state machine holds).
+DELETE {{base}}/specimens/1
+# curl -s -X DELETE {{base}}/specimens/1 -w '%{http_code}\n'

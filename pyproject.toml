@@ -28,6 +28,7 @@ cdc = "cdc_pipeline.__main__:app"
 dev = [
     "ruff>=0.6",
     "pytest>=8.0",
+    "httpx>=0.27",  # FastAPI/Starlette TestClient transport (API integration tests)
 ]
 
 [build-system]
@@ -48,9 +49,15 @@ src = ["src", "tests"]
 # pyupgrade (UP), flake8-bugbear (B). Expand as the codebase grows.
 select = ["E", "W", "F", "I", "UP", "B"]
 
+[tool.ruff.lint.per-file-ignores]
+# B008 (no function calls in argument defaults) is FastAPI's core idiom:
+# `session: Session = Depends(get_session)`. It is intentional, not a bug.
+"src/cdc_pipeline/api/**" = ["B008"]
+
 # ── pytest: unit suite by default; smoke suite is opt-in (needs the live stack) ──
 [tool.pytest.ini_options]
 addopts = "-q --strict-markers"
 markers = [
     "smoke: end-to-end checks against the live docker stack (require `make up`)",
+    "integration: API tests against the compose Postgres (require `make up && make migrate`)",
 ]

@@ -7,7 +7,7 @@ COMPOSE := docker compose --env-file .env -f deploy/docker-compose.yml
 
 .DEFAULT_GOAL := help
 
-.PHONY: help up down nuke ps logs sync lint format test smoke migrate seed
+.PHONY: help up down nuke ps logs sync lint format test itest smoke migrate seed api
 
 help: ## List available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -38,6 +38,12 @@ migrate: ## Apply Alembic migrations (schema + CDC capture config) to head
 seed: migrate ## Migrate then load seed data (~30 runs, ~5k specimens); idempotent
 	uv run python -m cdc_pipeline.db.seed
 
+## ── Tracking API (epic 02.2) ─────────────────────────────────────────────────
+
+api: ## Run the tracking API locally with auto-reload (needs Postgres up + migrated)
+	@set -a; [ -f .env ] && . ./.env; set +a; \
+	  uv run uvicorn cdc_pipeline.api.app:app --reload --port $${API_PORT:-8000}
+
 ## ── Python ───────────────────────────────────────────────────────────────────
 
 sync: ## Install/refresh the Python environment (.venv) from pyproject + uv.lock
@@ -53,6 +59,9 @@ format: ## Auto-fix lint findings and reformat in place
 
 test: ## Fast unit tests — no infrastructure required
 	uv run pytest tests/unit
+
+itest: ## API integration tests against the compose Postgres (run `make up migrate` first)
+	uv run pytest -m integration tests/integration
 
 smoke: ## Prove the live stack works end-to-end (run `make up` first)
 	uv run pytest -m smoke tests/smoke
