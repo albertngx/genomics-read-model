@@ -29,6 +29,9 @@ than restating it — so there is one source of truth and the wiki explains arou
   topics, compaction.
 - [Kafka Connect + Debezium](platform/kafka-connect-debezium.md) — the CDC producer; snapshot
   vs. streaming, event anatomy, LSN.
+  - [EVENTS.md](EVENTS.md) — the **change-event contract**: real captured payloads for all
+    five event kinds, annotated field by field; the `REPLICA IDENTITY` (D4) and decimal-mode
+    (D6) experiments. Written from observed events (story 03.2).
 - [Elasticsearch](platform/elasticsearch.md) — the search read-model; external versioning,
   denormalized docs, projection-deletes.
 - [Redis](platform/redis.md) — the cache read-model; compare-and-set idempotency.

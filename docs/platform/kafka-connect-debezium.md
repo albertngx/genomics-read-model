@@ -73,7 +73,10 @@ flowchart LR
 
 Each event is JSON describing one row change: `op` (`c`/`u`/`d`/`r`), `before`/`after` row
 images, and a `source` block that includes the **`lsn`** — the WAL position that every
-consumer uses as its idempotency version.
+consumer uses as its idempotency version. The full field-by-field contract — real captured
+payloads for all five event kinds, plus the `REPLICA IDENTITY` and decimal-mode experiments —
+is **[EVENTS.md](../EVENTS.md)** (story 03.2), and it is the bar phase 2's connector must
+reproduce.
 
 Two connector decisions from the [decision log](../../ARCHITECTURE.md) matter to everyone
 downstream:
@@ -106,6 +109,7 @@ idempotent — [ARCHITECTURE §5, §8](../../ARCHITECTURE.md)).
 
 ## See also
 
+- [EVENTS.md](../EVENTS.md) — the change-event contract: every field of every event kind
 - [Postgres & CDC](postgres-and-cdc.md) — where the WAL and replication slot come from
 - [Apache Kafka](kafka.md) — the topics these events land in
 - [Data lifecycle](../data-lifecycle.md) — the event's full journey to a search hit
