@@ -29,7 +29,11 @@ time (by `cdc_pipeline.tools.connector`), so no credential is hardcoded here —
 
 ## Not configured here (on purpose)
 
-- **Topic compaction / partitioning / retention** — that's story 03.3. Topics are
-  auto-created with broker defaults for now; `tombstones.on.delete=true` is set today so
-  compaction has what it needs later.
+- **Topic compaction / partitioning / retention** — owned by story 03.3, not by this
+  config: the topics are declared in [`../topics/topics.json`](../topics/topics.json) and
+  created by `make topics` *before* the connector is registered (broker auto-create is
+  off, so `make connector` depends on `make topics`). Debezium produces into topics that
+  already exist with their designed shape; it never invents one. `tombstones.on.delete=true`
+  above is this config's half of that bargain — it emits the null-valued record compaction
+  needs to eventually drop a deleted key.
 - **Heartbeats / `snapshot.mode` variants / signal tables** — not needed at this scale.

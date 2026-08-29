@@ -8,11 +8,12 @@ COMPOSE := docker compose --env-file .env -f deploy/docker-compose.yml
 .DEFAULT_GOAL := help
 
 .PHONY: help up down nuke ps logs sync lint format test itest smoke migrate seed api load \
+        topics topics-describe topics-recreate compaction-demo \
         connector connector-status connector-delete slot-status
 
 help: ## List available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
-	  | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[1m%-8s\033[0m %s\n", $$1, $$2}'
+	  | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[1m%-17s\033[0m %s\n", $$1, $$2}'
 
 ## ── Stack (epic 01) ──────────────────────────────────────────────────────────
 
@@ -67,13 +68,47 @@ load: ## Drive write load through the API (vars: SCENARIO RATE DURATION CONCURRE
 	uv run cdc-load $(SCENARIO) --rate $(RATE) --duration $(DURATION) \
 	  --concurrency $(CONCURRENCY) --processes $(PROCESSES) --seed $(SEED)
 
+## ── Topic design (epic 03.3) ─────────────────────────────────────────────────
+
+# The CDC topics are DESIGNED, not defaulted (ARCHITECTURE §4, D3): 6/3 partitions and
+# cleanup.policy=compact, declared in deploy/topics/topics.json. The broker's
+# auto.create.topics.enable is OFF, so this target is the only way they come into being —
+# an auto-created topic would get 1 partition and a 7-day delete policy, silently breaking
+# both per-key ordering and offset-0 replay. `connector` depends on it, so the normal flow
+# is unchanged. Idempotent: creates what's missing, converges config on what exists.
+topics: ## Create/converge the CDC topics from deploy/topics/topics.json (idempotent)
+	uv run cdc-topics create
+
+# Kafka's own operational surface (D1), not our tool: this is the output story 03.3's
+# acceptance criteria are captured from. `cdc-topics describe` is the spec-aware twin —
+# same facts, plus a drift verdict against deploy/topics/topics.json.
+topics-describe: ## kafka-topics.sh --describe for both CDC topics (the operational surface)
+	@$(COMPOSE) exec -T kafka /opt/kafka/bin/kafka-topics.sh \
+	  --bootstrap-server localhost:9092 --describe --topic cdc.public.specimens
+	@$(COMPOSE) exec -T kafka /opt/kafka/bin/kafka-topics.sh \
+	  --bootstrap-server localhost:9092 --describe --topic cdc.public.runs
+	@uv run cdc-topics describe
+
+# DESTRUCTIVE. Kafka can only *grow* a partition count, and growing one re-hashes the key
+# space — a row's history splits across two partitions and per-key ordering dies silently.
+# So a partition-count change is a delete-and-rebuild, followed by a re-snapshot to refill:
+#   make nuke && make up && make topics && make seed && make connector
+topics-recreate: ## DESTROY and rebuild topics whose partition count differs from the spec
+	uv run cdc-topics create --recreate
+
+compaction-demo: ## Observe compaction: 1000 updates → 1 record, and a tombstone's whole life
+	uv run cdc-compaction-demo
+
 ## ── CDC connector (epic 03.1) ────────────────────────────────────────────────
 
 # Registers the Debezium connector from deploy/connectors/genomics.json (${VAR}
 # placeholders filled from .env). Idempotent PUT: create-if-absent, update-in-place.
 # Needs `make up seed` first — the connector subscribes to the publication the
-# migration owns (cdc_pub) and snapshots the seeded rows.
-connector: ## Register/update the Debezium CDC connector (idempotent)
+# migration owns (cdc_pub) and snapshots the seeded rows. Depends on `topics`: the
+# topics must exist with their designed shape BEFORE the first event is produced,
+# because auto-create is off and a snapshot into a wrong-shaped topic is unfixable
+# without a rebuild (story 03.3).
+connector: topics ## Register/update the Debezium CDC connector (idempotent)
 	uv run cdc-connector register
 
 connector-status: ## Show connector + task status (RUNNING when healthy)

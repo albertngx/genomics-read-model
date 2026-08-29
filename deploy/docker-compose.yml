@@ -92,6 +92,13 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      # Topics are DESIGNED, not defaulted (story 03.3, ARCHITECTURE §4 / D3). An
+      # auto-created topic gets 1 partition and cleanup.policy=delete with a 7-day
+      # retention — both silently wrong here, and invisible until the snapshot ages out
+      # of the log or someone assumes cross-row ordering. Turning auto-create off makes
+      # that failure loud: produce to an unknown topic and the connector visibly fails.
+      # `make topics` (which `make connector` depends on) is now the only way they exist.
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
       KAFKA_LOG_DIRS: /var/lib/kafka/data
       CLUSTER_ID: 5L6g3nShT-eMCtK--X86sw
     ports:

@@ -22,3 +22,5 @@ Learnings are the "aha, *that's* what that flag does" layer.
   — rate vs. concurrency, why Zipf skew and seeding are features, and why the API was never the slow part.
 - [05 — The CDC handshake: publication → slot → connector → topics](05-cdc-handshake-and-slots.md)
   — what registering the connector binds together, the initial snapshot (`op:"r"`), and reading `pg_replication_slots`.
+- [06 — Topic design: partitions as ordering, compaction as retention-by-key](06-kafka-topic-design-and-compaction.md)
+  — what a partition actually guarantees, why a compacted topic looks like it isn't compacting, and the tombstone's two-stage death.

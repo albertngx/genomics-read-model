@@ -56,6 +56,13 @@ jobs:
       - name: Bring up the stack (health-checked)
         run: make up
 
+      # Topics BEFORE anything produces to them (story 03.3). The broker's
+      # auto.create.topics.enable is off on purpose, so this is the only way
+      # cdc.public.* come into being — and a snapshot that landed in a wrong-shaped
+      # topic could not be fixed in place afterwards.
+      - name: Create the designed CDC topics
+        run: make topics
+
       # Seed BEFORE smoke: the CDC connector smoke test (story 03.1) registers the
       # connector and asserts the snapshot/streaming against the seeded schema + rows
       # and the cdc_pub publication. The other smoke checks are schema-agnostic.

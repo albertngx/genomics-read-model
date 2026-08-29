@@ -86,9 +86,10 @@ Full design, rationale, topic layout, and failure-mode analysis are in
 
 **Phase 1 (the Debezium-based pipeline) is in progress.** The platform stack and the source
 service are complete, and CDC ingestion is underway: the Debezium connector is registered and
-streaming, and the change-event contract is documented in [docs/EVENTS.md](docs/EVENTS.md).
-Topic compaction and the failure drills come next, followed by the search indexer, cache
-consumer, verifier, and rebuild demos.
+streaming, the change-event contract is documented in [docs/EVENTS.md](docs/EVENTS.md), and
+the Kafka topics are explicitly designed — partitioned by primary key and log-compacted, so
+per-row ordering is guaranteed and replay from offset 0 stays affordable forever. The failure
+drills come next, followed by the search indexer, cache consumer, verifier, and rebuild demos.
 
 See [project-mgmt/](project-mgmt/) for the full epic/story breakdown and current progress, and
 [project-mgmt/roadmap.md](project-mgmt/roadmap.md) for what follows Phase 1: a hand-written
@@ -105,22 +106,30 @@ docs/             explanatory wiki: how each part works, the EVENTS.md event
 project-mgmt/     the epic/story breakdown, plus roadmap.md for what's beyond Phase 1
 learnings/        short notes on the CDC / Kafka / Postgres gotchas found while building
 src/              the tracking API, database models and migrations, and CLI tooling
-deploy/           the docker-compose stack and the Debezium connector config
+deploy/           the docker-compose stack, the Debezium connector config, and the
+                  Kafka topic spec
 tests/            unit, integration, and smoke tests
 Makefile          a single entrypoint for every workflow (run `make help`)
 ```
 
 ## Quickstart
 
-Prerequisites: Docker (via Colima) and [`uv`](https://docs.astral.sh/uv/) — see
+Prerequisites: Docker Desktop (Colima is the documented fallback — never run both, they
+fight over host ports) and [`uv`](https://docs.astral.sh/uv/) — see
 [PREREQUISITES.md](PREREQUISITES.md). Run all commands from the repository root.
 
 ```
-make up      # start the stack (Postgres, Kafka+Connect, Elasticsearch, Redis, kafka-ui, tracking API)
-make seed    # apply migrations and load sample data (~30 runs, ~5k specimens); idempotent
-make down    # stop the stack, keep data (volumes survive)
-make nuke    # stop the stack and delete all data (removes the volumes)
+make up         # start the stack (Postgres, Kafka+Connect, Elasticsearch, Redis, kafka-ui, tracking API)
+make topics     # create the CDC topics with their designed partitions and compaction
+make seed       # apply migrations and load sample data (~30 runs, ~5k specimens); idempotent
+make connector  # register the Debezium connector — it snapshots, then streams
+make down       # stop the stack, keep data (volumes survive)
+make nuke       # stop the stack and delete all data (removes the volumes)
 ```
+
+Topics must exist before anything produces to them — broker auto-create is deliberately
+off, so an accidentally mis-shaped topic can't silently break ordering or replay. `make
+connector` depends on `make topics`, so the ordering takes care of itself.
 
 The tracking API is served at `http://localhost:8000`, with interactive API docs (Swagger UI)
 at [`/docs`](http://localhost:8000/docs) and a set of example requests in

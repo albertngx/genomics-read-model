@@ -27,6 +27,10 @@ cdc = "cdc_pipeline.__main__:app"
 cdc-load = "cdc_pipeline.tools.load.cli:main"
 # CDC connector (epic 03.1): register/inspect the Debezium connector via the Connect REST API.
 cdc-connector = "cdc_pipeline.tools.connector:main"
+# Topic design (epic 03.3): apply/inspect deploy/topics/topics.json — partitions and compaction.
+cdc-topics = "cdc_pipeline.tools.topics:main"
+# Compaction demo (epic 03.3): watch 1000 updates collapse to one record, and a tombstone die.
+cdc-compaction-demo = "cdc_pipeline.tools.compaction_demo:main"
 
 [dependency-groups]
 # Installed by `uv sync` (dev group is default). Not shipped in the wheel.
